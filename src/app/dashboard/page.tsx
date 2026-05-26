@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/server';
 import { createMeal, deleteMeal, startFast, endFast, updateCalorieGoal } from '../actions/appActions';
 import { signout } from '../auth/actions';
 import DashboardCharts from '@/components/DashboardCharts';
-import { LogOut, Plus, Trash2, Zap, Trophy, Flame, Utensils } from 'lucide-react';
+import { LogOut, Plus, Trash2, Zap, Trophy, Flame, Utensils, Calendar } from 'lucide-react';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -84,7 +84,7 @@ export default async function DashboardPage() {
         {/* SEÇÃO CARD SUPERIOR: META CALÓRICA & JEJUM */}
         <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
           
-          {/* META CALÓRICA DIÁRIA (CORRIGIDA) */}
+          {/* META CALÓRICA DIÁRIA */}
           <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 md:col-span-2 space-y-4">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
               <h2 className="font-bold text-slate-800 dark:text-slate-200">Meta Calórica Diária</h2>
@@ -190,9 +190,9 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* SEÇÃO INFERIOR: CRUD DE REFEIÇÕES */}
+        {/* SEÇÃO DE CADASTROS E LISTAGENS */}
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Formulário de Criação com Design Atualizado */}
+          {/* Formulário de Criação */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 h-fit">
             <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-white flex items-center gap-2">
               <Plus size={18} className="text-blue-600"/> Registrar Refeição
@@ -236,14 +236,14 @@ export default async function DashboardPage() {
             </form>
           </div>
 
-          {/* Histórico e Listagem */}
+          {/* Histórico de Alimentos */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 lg:col-span-2">
             <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-white flex items-center gap-2">
-              <Utensils size={18} className="text-slate-400"/> Histórico de Alimentos
+              <Utensils size={18} className="text-slate-400"/> Histórico de Alimentos (CRUD)
             </h3>
-            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-2">
+            <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2">
               {meals.length === 0 ? (
-                <p className="text-slate-400 text-sm py-4">Nenhum registro encontrado para este perfil.</p>
+                <p className="text-slate-400 text-sm py-4">Nenhum alimento registrado ainda.</p>
               ) : (
                 meals.map((meal) => (
                   <div key={meal.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/70 transition dark:bg-slate-800/40 dark:hover:bg-slate-800/80">
@@ -253,14 +253,24 @@ export default async function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="font-black text-sm text-blue-600 dark:text-blue-400">{meal.calories} kcal</span>
-                     <form action={async () => { 
-  'use server'; 
-  await deleteMeal(meal.id); 
-}}>
-  <button type="submit" className="text-slate-300 hover:text-red-500 transition p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30">
-    <Trash2 size={15} />
-  </button>
-</form>
+                      
+                      {/* FORMULÁRIO COM VALIDAÇÃO CLIENT-SIDE DE EXCLUSÃO EXIGIDA */}
+                      <form 
+                        action={async () => { 'use server'; await deleteMeal(meal.id); }}
+                        // O método onSubmit abaixo impede a exclusão se o usuário recusar o aviso do navegador
+                      >
+                        <button 
+                          type="submit" 
+                          onClick={(e) => {
+                            if (!confirm('Deseja realmente remover esta refeição permanentemente do seu relatório?')) {
+                              e.preventDefault();
+                            }
+                          }}
+                          className="text-slate-300 hover:text-red-500 transition p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </form>
                     </div>
                   </div>
                 ))
@@ -268,6 +278,39 @@ export default async function DashboardPage() {
             </div>
           </div>
         </section>
+
+        {/* REQUISITO OBRIGATÓRIO: HISTÓRICO DE JEJUNS COMPLEMENTAR */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
+          <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-white flex items-center gap-2">
+            <Calendar size={18} className="text-amber-500"/> Histórico de Ciclos de Jejum Concluídos
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[250px] overflow-y-auto pr-2">
+            {completedFasts.length === 0 ? (
+              <p className="text-slate-400 text-sm py-2 col-span-full">Nenhum ciclo de jejum encerrado registrado no histórico.</p>
+            ) : (
+              completedFasts.map((fast) => {
+                const hours = (new Date(fast.end_time!).getTime() - new Date(fast.start_time).getTime()) / (1000 * 60 * 60);
+                return (
+                  <div key={fast.id} className="p-4 rounded-xl bg-slate-50 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
+                    <div className="flex justify-between items-start">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 uppercase tracking-wide">
+                        Meta {fast.planned_type}
+                      </span>
+                      <span className="text-sm font-black text-slate-700 dark:text-slate-300">
+                        {hours.toFixed(1)} horas
+                      </span>
+                    </div>
+                    <div className="mt-3 text-xs text-slate-400 space-y-0.5">
+                      <p>Início: {new Date(fast.start_time).toLocaleString('pt-BR')}</p>
+                      <p>Fim: {new Date(fast.end_time!).toLocaleString('pt-BR')}</p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+
       </main>
 
       {/* FOOTER - AVISO ÉTICO E MÉDICO MANDATÓRIO */}

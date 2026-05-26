@@ -42,6 +42,10 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
             />
           </div>
 
+          <div className="text-right mt-1">
+  <a href="/recovery" className="text-xs text-slate-400 hover:text-blue-500 transition">Esqueceu sua senha?</a>
+</div>
+
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button 
               formAction={login} 
