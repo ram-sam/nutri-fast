@@ -4,7 +4,6 @@ import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-// Esquemas de Validação (Zod)
 const mealSchema = z.object({
   description: z.string().min(2, "Descrição muito curta"),
   calories: z.number().positive("Calorias devem ser maiores que zero"),
@@ -12,9 +11,8 @@ const mealSchema = z.object({
   date: z.string(),
 });
 
-// --- ACTIONS DE REFEIÇÃO (CRUD) ---
 export async function createMeal(formData: FormData) {
-  const supabase = await createClient();
+  const supabase = await createClient(); // Atualizado com await
   const rawData = {
     description: formData.get('description') as string,
     calories: Number(formData.get('calories')),
@@ -34,7 +32,7 @@ export async function createMeal(formData: FormData) {
 }
 
 export async function updateMeal(id: string, formData: FormData) {
-  const supabase = await createClient();
+  const supabase = await createClient(); // Atualizado com await
   const rawData = {
     description: formData.get('description') as string,
     calories: Number(formData.get('calories')),
@@ -54,15 +52,14 @@ export async function updateMeal(id: string, formData: FormData) {
 }
 
 export async function deleteMeal(id: string) {
-  const supabase = await createClient();
+  const supabase = await createClient(); // Atualizado com await
   const { error } = await supabase.from('meals').delete().eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/dashboard');
 }
 
-// --- ACTIONS DE META DIÁRIA ---
 export async function updateCalorieGoal(goal: number) {
-  const supabase = await createClient();
+  const supabase = await createClient(); // Atualizado com await
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Não autenticado");
 
@@ -75,20 +72,19 @@ export async function updateCalorieGoal(goal: number) {
   revalidatePath('/dashboard');
 }
 
-// --- ACTIONS DE JEJUM ---
 export async function startFast(plannedType: string) {
-  const supabase = await createClient();
+  const supabase = await createClient(); // Atualizado com await
   const { error } = await supabase.from('fasts').insert([{
     start_time: new Date().toISOString(),
     planned_type: plannedType
   }]);
 
-  if (error) throw new Error("Erro ao iniciar jejum. Certifique-se de que não há outro ativo.");
+  if (error) throw new Error("Erro ao iniciar jejum.");
   revalidatePath('/dashboard');
 }
 
 export async function endFast(activeFastId: string) {
-  const supabase = await createClient();
+  const supabase = await createClient(); // Atualizado com await
   const { error } = await supabase.from('fasts').update({
     end_time: new Date().toISOString()
   }).eq('id', activeFastId);
