@@ -5,7 +5,7 @@ import DashboardCharts from '@/components/DashboardCharts';
 import { LogOut, Plus, Trash2, Zap, Trophy, Flame } from 'lucide-react';
 
 export default async function DashboardPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Queries paralelas buscando o estado atual do banco
   const [mealsRes, fastsRes, profileRes] = await Promise.all([

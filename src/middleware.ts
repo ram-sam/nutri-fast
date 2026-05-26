@@ -21,6 +21,7 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Mudança importante aqui para a versão mais nova do Supabase no Middleware:
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {

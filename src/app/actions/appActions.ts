@@ -14,7 +14,7 @@ const mealSchema = z.object({
 
 // --- ACTIONS DE REFEIÇÃO (CRUD) ---
 export async function createMeal(formData: FormData) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const rawData = {
     description: formData.get('description') as string,
     calories: Number(formData.get('calories')),
@@ -34,7 +34,7 @@ export async function createMeal(formData: FormData) {
 }
 
 export async function updateMeal(id: string, formData: FormData) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const rawData = {
     description: formData.get('description') as string,
     calories: Number(formData.get('calories')),
@@ -54,7 +54,7 @@ export async function updateMeal(id: string, formData: FormData) {
 }
 
 export async function deleteMeal(id: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from('meals').delete().eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/dashboard');
@@ -62,7 +62,7 @@ export async function deleteMeal(id: string) {
 
 // --- ACTIONS DE META DIÁRIA ---
 export async function updateCalorieGoal(goal: number) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Não autenticado");
 
@@ -77,7 +77,7 @@ export async function updateCalorieGoal(goal: number) {
 
 // --- ACTIONS DE JEJUM ---
 export async function startFast(plannedType: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from('fasts').insert([{
     start_time: new Date().toISOString(),
     planned_type: plannedType
@@ -88,7 +88,7 @@ export async function startFast(plannedType: string) {
 }
 
 export async function endFast(activeFastId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from('fasts').update({
     end_time: new Date().toISOString()
   }).eq('id', activeFastId);
