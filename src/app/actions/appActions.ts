@@ -63,18 +63,23 @@ export async function deleteMeal(id: string) {
 export async function updateCalorieGoal(goal: number) {
   const supabase = await createClient();
   
-  // Pega a sessão ativa
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user;
+  // Pega o usuário logado de forma direta e segura
+  const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user) throw new Error("Usuário não identificado na sessão.");
+  if (!user) throw new Error("Usuário não identificado.");
 
-  const { error } = await supabase.from('profiles').update({
+  // Usando UPSERT (Garante que atualiza se existir, ou cria se não existir)
+  const { error } = await supabase.from('profiles').upsert({
+    id: user.id,
     daily_calorie_goal: goal,
     updated_at: new Date().toISOString()
-  }).eq('id', user.id);
+  });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Erro interno do Supabase:", error.message);
+    throw new Error(error.message);
+  }
+
   revalidatePath('/dashboard');
 }
 
