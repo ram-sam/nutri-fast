@@ -21,11 +21,10 @@ export default async function DashboardPage() {
   const activeFast = fasts.find(f => f.end_time === null);
   const completedFasts = fasts.filter(f => f.end_time !== null);
 
-  // Lógica para separar consumo de hoje e barra de progresso
-  const startOfToday = new Date();
-  startOfToday.setHours(0,0,0,0);
+  // Lógica segura para separar consumo de hoje (baseado na data local em formato string YYYY-MM-DD)
+  const todayStr = new Date().toISOString().split('T')[0];
   const todayCalories = meals
-    .filter(m => new Date(m.date) >= startOfToday)
+    .filter(m => m.date && m.date.startsWith(todayStr))
     .reduce((sum, m) => sum + m.calories, 0);
 
   const percentage = Math.min((todayCalories / profile.daily_calorie_goal) * 100, 100);
@@ -38,17 +37,21 @@ export default async function DashboardPage() {
   }).reverse();
 
   const chartData = last7Days.map(day => {
-    const dayMeals = meals.filter(m => m.date.startsWith(day));
+    const dayMeals = meals.filter(m => m.date && m.date.startsWith(day));
     const dayCal = dayMeals.reduce((sum, m) => sum + m.calories, 0);
     
-    const dayFasts = completedFasts.filter(f => f.start_time.startsWith(day));
+    const dayFasts = completedFasts.filter(f => f.start_time && f.start_time.startsWith(day));
     const dayFastHours = dayFasts.reduce((sum, f) => {
-      const duration = (new Date(f.end_time!).getTime() - new Date(f.start_time).getTime()) / (1000 * 60 * 60);
+      if (!f.end_time) return sum;
+      const duration = (new Date(f.end_time).getTime() - new Date(f.start_time).getTime()) / (1000 * 60 * 60);
       return sum + duration;
     }, 0);
 
+    // Formatação de exibição segura para evitar quebra de hidratação (Hydration Error)
+    const labelDia = day.split('-')[2] + '/' + day.split('-')[1];
+
     return {
-      day: new Date(day).toLocaleDateString('pt-BR', { weekday: 'short' }),
+      day: labelDia,
       calories: dayCal,
       fastingHours: parseFloat(dayFastHours.toFixed(1))
     };
@@ -137,7 +140,6 @@ export default async function DashboardPage() {
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
                   Em andamento...
                 </div>
-                <p className="text-xs text-slate-400 dark:text-slate-500">Início: {new Date(activeFast.start_time).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</p>
                 <form action={async () => { 'use server'; await endFast(activeFast.id); }}>
                   <button className="w-full bg-red-500 text-white rounded-xl py-2.5 text-sm font-bold hover:bg-red-600 transition active:scale-95 shadow-sm shadow-red-500/10">
                     Encerrar Jejum
@@ -245,41 +247,42 @@ export default async function DashboardPage() {
               {meals.length === 0 ? (
                 <p className="text-slate-400 text-sm py-4">Nenhum alimento registrado ainda.</p>
               ) : (
-                meals.map((meal) => (
-                  <div key={meal.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/70 transition dark:bg-slate-800/40 dark:hover:bg-slate-800/80">
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{meal.description}</h4>
-                      <p className="text-xs text-slate-400 capitalize mt-0.5">{meal.type} • {new Date(meal.date).toLocaleDateString('pt-BR')} {new Date(meal.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</p>
+                meals.map((meal) => {
+                  // Extração estática e segura da data para evitar Hydration Error na nuvem
+                  const dataFormatada = meal.date ? meal.date.split('T')[0].split('-').reverse().join('/') : '';
+                  
+                  return (
+                    <div key={meal.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/70 transition dark:bg-slate-800/40 dark:hover:bg-slate-800/80">
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{meal.description}</h4>
+                        <p className="text-xs text-slate-400 capitalize mt-0.5">{meal.type} • {dataFormatada}</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="font-black text-sm text-blue-600 dark:text-blue-400">{meal.calories} kcal</span>
+                        
+                        <form action={async () => { 'use server'; await deleteMeal(meal.id); }}>
+                          <button 
+                            type="submit" 
+                            onClick={(e) => {
+                              if (!confirm('Deseja realmente remover esta refeição permanentemente do seu relatório?')) {
+                                e.preventDefault();
+                              }
+                            }}
+                            className="text-slate-300 hover:text-red-500 transition p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </form>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-black text-sm text-blue-600 dark:text-blue-400">{meal.calories} kcal</span>
-                      
-                      {/* FORMULÁRIO COM VALIDAÇÃO CLIENT-SIDE DE EXCLUSÃO EXIGIDA */}
-                      <form 
-                        action={async () => { 'use server'; await deleteMeal(meal.id); }}
-                        // O método onSubmit abaixo impede a exclusão se o usuário recusar o aviso do navegador
-                      >
-                        <button 
-                          type="submit" 
-                          onClick={(e) => {
-                            if (!confirm('Deseja realmente remover esta refeição permanentemente do seu relatório?')) {
-                              e.preventDefault();
-                            }
-                          }}
-                          className="text-slate-300 hover:text-red-500 transition p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
         </section>
 
-        {/* REQUISITO OBRIGATÓRIO: HISTÓRICO DE JEJUNS COMPLEMENTAR */}
+        {/* HISTÓRICO DE JEJUNS COMPLEMENTAR */}
         <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
           <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-white flex items-center gap-2">
             <Calendar size={18} className="text-amber-500"/> Histórico de Ciclos de Jejum Concluídos
@@ -290,6 +293,8 @@ export default async function DashboardPage() {
             ) : (
               completedFasts.map((fast) => {
                 const hours = (new Date(fast.end_time!).getTime() - new Date(fast.start_time).getTime()) / (1000 * 60 * 60);
+                const dataInicio = fast.start_time ? fast.start_time.split('T')[0].split('-').reverse().join('/') : '';
+                
                 return (
                   <div key={fast.id} className="p-4 rounded-xl bg-slate-50 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
                     <div className="flex justify-between items-start">
@@ -301,8 +306,7 @@ export default async function DashboardPage() {
                       </span>
                     </div>
                     <div className="mt-3 text-xs text-slate-400 space-y-0.5">
-                      <p>Início: {new Date(fast.start_time).toLocaleString('pt-BR')}</p>
-                      <p>Fim: {new Date(fast.end_time!).toLocaleString('pt-BR')}</p>
+                      <p>Data: {dataInicio}</p>
                     </div>
                   </div>
                 );
@@ -313,7 +317,7 @@ export default async function DashboardPage() {
 
       </main>
 
-      {/* FOOTER - AVISO ÉTICO E MÉDICO MANDATÓRIO */}
+      {/* FOOTER */}
       <footer className="mt-24 border-t border-slate-100 bg-white dark:bg-slate-900 dark:border-slate-800 py-8 text-center text-xs text-slate-400 dark:text-slate-500">
         <div className="max-w-7xl mx-auto px-4 leading-relaxed">
           Aviso Importante: Este sistema operacional constitui um exercício prático puramente acadêmico de caráter informativo. O monitoramento de balanço energético e rotinas de jejum aqui dispostos não substituem, sob nenhuma hipótese, diagnósticos, pareceres, triagens ou acompanhamentos médicos, nutricionais e psicológicos especializados.
